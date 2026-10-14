@@ -20,12 +20,19 @@
   html,body{margin:0;background:var(--bg);color:var(--ink);
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
   header{position:sticky;top:0;z-index:5;background:var(--green);color:#fff;
-    display:flex;justify-content:space-between;align-items:center;padding:calc(12px + env(safe-area-inset-top)) 16px 12px}
+    padding:calc(12px + env(safe-area-inset-top)) 16px 12px}
+  .bar{display:flex;justify-content:space-between;align-items:center;gap:8px}
   header h1{margin:0;font-size:22px;font-weight:700}
-  #reset{background:none;border:0;color:var(--amber-soft);font-size:15px;font-weight:600;padding:6px 0}
+  .hr{display:flex;align-items:center;gap:14px}
+  .hbtn{background:none;border:0;color:var(--amber-soft);font-size:15px;font-weight:600;padding:6px 0;touch-action:manipulation}
   #reset.armed{color:#fff;background:#A5392B;border-radius:8px;padding:6px 10px}
-  .cols,.row{display:grid;grid-template-columns:76px 1fr 60px 68px 22px;gap:6px;align-items:center}
+  #cfg{display:grid;gap:10px;margin-top:12px}
+  #cfg[hidden]{display:none}
+  #cfg label{display:grid;gap:4px;font-size:12px;font-weight:600;color:var(--amber-soft)}
+  #cfg select{font:inherit;font-size:16px;height:44px;border:0;border-radius:8px;padding:0 10px;background:#fff;color:var(--ink);width:100%}
+  .cols,.row{display:grid;grid-template-columns:76px 1fr 60px 78px 22px;gap:6px;align-items:center}
   .cols{padding:8px 16px 4px;font-size:12px;font-weight:600;color:var(--muted)}
+  .cols span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .cols span:nth-child(3),.cols span:nth-child(4){text-align:right}
   main{padding:4px 10px 24px}
   .row{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px;margin-bottom:6px}
@@ -41,36 +48,139 @@
   .name{height:46px;border:0;background:transparent;font-size:16px;padding:0 4px;min-width:0;width:100%}
   .name::placeholder,.price::placeholder{color:var(--muted)}
   .price{height:46px;border:0;border-radius:8px;background:var(--bg);font-size:16px;text-align:right;padding:0 6px;min-width:0;width:100%}
-  .sum{text-align:right;font-weight:700;font-size:15px;white-space:nowrap}
+  .sum{text-align:right;font-weight:700;font-size:15px;white-space:nowrap;min-width:0}
   .sum.zero{color:var(--muted);font-weight:400}
   .del{background:none;border:0;color:var(--muted);font-size:14px;height:46px;padding:0}
   #add{width:100%;margin-top:4px;padding:14px;border:1.5px dashed var(--amber);border-radius:10px;
     background:transparent;color:var(--amber);font-size:16px;font-weight:700}
   footer{position:sticky;bottom:0;background:var(--green);color:#fff;display:flex;justify-content:space-between;
-    align-items:center;padding:14px 18px calc(14px + env(safe-area-inset-bottom))}
+    align-items:center;gap:10px;padding:14px 18px calc(14px + env(safe-area-inset-bottom))}
   footer .l{font-size:18px;font-weight:600}
   footer .s{font-size:13px;color:var(--amber-soft);margin-top:2px}
-  footer .t{font-size:32px;font-weight:800}
+  footer .t{font-size:30px;font-weight:800;text-align:right}
 </style>
 </head>
 <body>
 <header>
-  <h1>Bestellung</h1>
-  <button id="reset">Neue Runde</button>
+  <div class="bar">
+    <h1 data-i="title"></h1>
+    <div class="hr">
+      <button class="hbtn" id="cfgBtn" aria-haspopup="true"></button>
+      <button class="hbtn" id="reset"></button>
+    </div>
+  </div>
+  <div id="cfg" hidden>
+    <label><span data-i="lang"></span><select id="langSel"></select></label>
+    <label><span data-i="cur"></span><select id="curSel"></select></label>
+  </div>
 </header>
-<div class="cols"><span>Anzahl</span><span>Produkt</span><span>Preis</span><span>Summe</span><span></span></div>
+<div class="cols"><span data-i="qty"></span><span data-i="product"></span><span data-i="price"></span><span data-i="sum"></span><span></span></div>
 <main>
   <div id="list"></div>
-  <button id="add">+ Produkt hinzufügen</button>
+  <button id="add" data-i="add"></button>
 </main>
 <footer>
-  <div><div class="l">Gesamt</div><div class="s" id="pieces">0 Stück</div></div>
-  <div class="t" id="total">0,00 €</div>
+  <div><div class="l" data-i="total"></div><div class="s" id="pieces"></div></div>
+  <div class="t" id="total"></div>
 </footer>
 
 <script>
 const KEY = 'bestell-check-items';
-const fmt = new Intl.NumberFormat('de-DE', {style:'currency', currency:'EUR'});
+const SKEY = 'bestell-check-settings';
+
+// ---------- Sprachen & Währungen ----------
+// id, Locale (Zahlenformat), Anzeigename, Standardwährung, Textsatz
+const LANGS = [
+  {id:'de',    loc:'de-DE', name:'Deutsch',          cur:'EUR', d:'de'},
+  {id:'en-GB', loc:'en-GB', name:'English (UK)',     cur:'GBP', d:'en'},
+  {id:'en-US', loc:'en-US', name:'English (US)',     cur:'USD', d:'en'},
+  {id:'fr',    loc:'fr-FR', name:'Français',         cur:'EUR', d:'fr'},
+  {id:'bg',    loc:'bg-BG', name:'Български',        cur:'EUR', d:'bg'},
+  {id:'hr',    loc:'hr-HR', name:'Hrvatski',         cur:'EUR', d:'hr'},
+  {id:'cs',    loc:'cs-CZ', name:'Čeština',          cur:'CZK', d:'cs'},
+  {id:'da',    loc:'da-DK', name:'Dansk',            cur:'DKK', d:'da'},
+  {id:'nl',    loc:'nl-NL', name:'Nederlands',       cur:'EUR', d:'nl'},
+  {id:'et',    loc:'et-EE', name:'Eesti',            cur:'EUR', d:'et'},
+  {id:'fi',    loc:'fi-FI', name:'Suomi',            cur:'EUR', d:'fi'},
+  {id:'el',    loc:'el-GR', name:'Ελληνικά',         cur:'EUR', d:'el'},
+  {id:'hu',    loc:'hu-HU', name:'Magyar',           cur:'HUF', d:'hu'},
+  {id:'ga',    loc:'ga-IE', name:'Gaeilge',          cur:'EUR', d:'ga'},
+  {id:'it',    loc:'it-IT', name:'Italiano',         cur:'EUR', d:'it'},
+  {id:'lv',    loc:'lv-LV', name:'Latviešu',         cur:'EUR', d:'lv'},
+  {id:'lt',    loc:'lt-LT', name:'Lietuvių',         cur:'EUR', d:'lt'},
+  {id:'mt',    loc:'mt-MT', name:'Malti',            cur:'EUR', d:'mt'},
+  {id:'pl',    loc:'pl-PL', name:'Polski',           cur:'PLN', d:'pl'},
+  {id:'pt',    loc:'pt-PT', name:'Português',        cur:'EUR', d:'pt'},
+  {id:'ro',    loc:'ro-RO', name:'Română',           cur:'RON', d:'ro'},
+  {id:'sk',    loc:'sk-SK', name:'Slovenčina',       cur:'EUR', d:'sk'},
+  {id:'sl',    loc:'sl-SI', name:'Slovenščina',      cur:'EUR', d:'sl'},
+  {id:'es',    loc:'es-ES', name:'Español',          cur:'EUR', d:'es'},
+  {id:'sv',    loc:'sv-SE', name:'Svenska',          cur:'SEK', d:'sv'}
+];
+const CURS = ['EUR','GBP','USD','CZK','DKK','HUF','PLN','RON','SEK'];
+
+const KEYS = ['title','reset','sure','qty','product','price','sum','add','total','pieces','lang','cur','del'];
+const T = {
+  de:['Bestellung','Neue Runde','Wirklich löschen?','Anzahl','Produkt','Preis','Summe','+ Produkt hinzufügen','Gesamt','Stück','Sprache','Währung','Entfernen'],
+  en:['Order','New round','Really delete?','Qty','Item','Price','Sum','+ Add item','Total','Pieces','Language','Currency','Remove'],
+  fr:['Commande','Nouveau tour','Vraiment effacer ?','Qté','Article','Prix','Total','+ Ajouter un article','Total','Pièces','Langue','Devise','Supprimer'],
+  bg:['Поръчка','Нов рунд','Наистина ли да се изтрие?','Бр.','Продукт','Цена','Сума','+ Добави продукт','Общо','Бройки','Език','Валута','Премахни'],
+  hr:['Narudžba','Nova runda','Stvarno obrisati?','Kol.','Proizvod','Cijena','Iznos','+ Dodaj proizvod','Ukupno','Komada','Jezik','Valuta','Ukloni'],
+  cs:['Objednávka','Nové kolo','Opravdu smazat?','Počet','Položka','Cena','Součet','+ Přidat položku','Celkem','Kusů','Jazyk','Měna','Odebrat'],
+  da:['Bestilling','Ny runde','Virkelig slette?','Antal','Produkt','Pris','Sum','+ Tilføj produkt','I alt','Stk.','Sprog','Valuta','Fjern'],
+  nl:['Bestelling','Nieuwe ronde','Echt wissen?','Aantal','Product','Prijs','Totaal','+ Product toevoegen','Totaal','Stuks','Taal','Valuta','Verwijder'],
+  et:['Tellimus','Uus voor','Kas kustutada?','Kogus','Toode','Hind','Summa','+ Lisa toode','Kokku','Tükke','Keel','Valuuta','Eemalda'],
+  fi:['Tilaus','Uusi kierros','Poistetaanko?','Määrä','Tuote','Hinta','Summa','+ Lisää tuote','Yhteensä','Kappaletta','Kieli','Valuutta','Poista'],
+  el:['Παραγγελία','Νέος γύρος','Σίγουρα διαγραφή;','Ποσ.','Προϊόν','Τιμή','Ποσό','+ Προσθήκη προϊόντος','Σύνολο','Τεμάχια','Γλώσσα','Νόμισμα','Αφαίρεση'],
+  hu:['Rendelés','Új kör','Biztosan törli?','Db','Termék','Ár','Összeg','+ Termék hozzáadása','Összesen','Darab','Nyelv','Pénznem','Eltávolítás'],
+  ga:['Ordú','Babhta nua','An scriosfar?','Líon','Earra','Praghas','Suim','+ Cuir earra leis','Iomlán','Píosaí','Teanga','Airgeadra','Bain'],
+  it:['Ordine','Nuovo giro','Cancellare davvero?','Q.tà','Prodotto','Prezzo','Totale','+ Aggiungi prodotto','Totale','Pezzi','Lingua','Valuta','Rimuovi'],
+  lv:['Pasūtījums','Jauna kārta','Vai tiešām dzēst?','Skaits','Produkts','Cena','Summa','+ Pievienot produktu','Kopā','Gabali','Valoda','Valūta','Noņemt'],
+  lt:['Užsakymas','Naujas ratas','Tikrai ištrinti?','Kiekis','Produktas','Kaina','Suma','+ Pridėti produktą','Iš viso','Vienetai','Kalba','Valiuta','Pašalinti'],
+  mt:['Ordni','Rawnd ġdid','Tassew tħassar?','Kwant.','Prodott','Prezz','Somma','+ Żid prodott','Total','Biċċiet','Lingwa','Munita','Neħħi'],
+  pl:['Zamówienie','Nowa runda','Naprawdę usunąć?','Ilość','Produkt','Cena','Suma','+ Dodaj produkt','Razem','Sztuk','Język','Waluta','Usuń'],
+  pt:['Pedido','Nova ronda','Apagar mesmo?','Qtd.','Produto','Preço','Soma','+ Adicionar produto','Total','Peças','Idioma','Moeda','Remover'],
+  ro:['Comandă','Rundă nouă','Sigur ștergi?','Cant.','Produs','Preț','Sumă','+ Adaugă produs','Total','Bucăți','Limbă','Monedă','Elimină'],
+  sk:['Objednávka','Nové kolo','Naozaj vymazať?','Počet','Položka','Cena','Súčet','+ Pridať položku','Spolu','Kusov','Jazyk','Mena','Odstrániť'],
+  sl:['Naročilo','Nov krog','Res izbrišem?','Kol.','Izdelek','Cena','Vsota','+ Dodaj izdelek','Skupaj','Kosov','Jezik','Valuta','Odstrani'],
+  es:['Pedido','Nueva ronda','¿Borrar todo?','Cant.','Producto','Precio','Suma','+ Añadir producto','Total','Piezas','Idioma','Moneda','Quitar'],
+  sv:['Beställning','Ny omgång','Verkligen radera?','Antal','Produkt','Pris','Summa','+ Lägg till produkt','Totalt','St.','Språk','Valuta','Ta bort']
+};
+
+function detectDefault(){
+  const nav = (navigator.language || 'de').toLowerCase();
+  let l = LANGS.find(x => x.id.toLowerCase() === nav) ||
+          LANGS.find(x => x.loc.toLowerCase() === nav) ||
+          LANGS.find(x => x.id.toLowerCase() === nav.split('-')[0]) ||
+          LANGS.find(x => x.loc.toLowerCase().startsWith(nav.split('-')[0] + '-'));
+  l = l || LANGS[0];
+  return {lang: l.id, cur: l.cur};
+}
+let S = detectDefault();
+try {
+  const raw = localStorage.getItem(SKEY);
+  const s = raw && JSON.parse(raw);
+  if (s && LANGS.some(x => x.id === s.lang) && CURS.includes(s.cur)) S = s;
+} catch(e) {}
+const L = () => LANGS.find(x => x.id === S.lang) || LANGS[0];
+const t = k => (T[L().d] || T.en)[KEYS.indexOf(k)];
+function saveSettings(){ try { localStorage.setItem(SKEY, JSON.stringify(S)); } catch(e) {} }
+
+let nfCur, nfZero = '0,00';
+function mkFormats(){
+  try { nfCur = new Intl.NumberFormat(L().loc, {style:'currency', currency:S.cur, currencyDisplay:'narrow'}); }
+  catch(e) { nfCur = new Intl.NumberFormat(L().loc, {style:'currency', currency:S.cur}); }
+  nfZero = new Intl.NumberFormat(L().loc, {minimumFractionDigits:2, maximumFractionDigits:2}).format(0);
+}
+const fmt = n => nfCur.format(n);
+
+function curLabel(code){
+  let name = '';
+  try { name = new Intl.DisplayNames([L().loc], {type:'currency'}).of(code) || ''; } catch(e) {}
+  return name && name !== code ? code + ' – ' + name : code;
+}
+
+// ---------- Daten ----------
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
 const newItem = () => ({id: uid(), count: 0, name: '', price: ''});
 const parsePrice = s => { const n = parseFloat(String(s).replace(',', '.')); return isFinite(n) && n > 0 ? n : 0; };
@@ -82,22 +192,22 @@ const listEl = document.getElementById('list');
 let saveTimer;
 function save(){
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(async () => {
-    try { localStorage.setItem(KEY, JSON.stringify(items)); } catch(e) {}
-  }, 300);
+  saveTimer = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(items)); } catch(e) {} }, 300);
 }
 
 function updateTotals(){
-  let t = 0, p = 0;
-  items.forEach(it => { t += lineTotal(it); p += it.count; });
-  document.getElementById('total').textContent = fmt.format(Math.round(t*100)/100);
-  document.getElementById('pieces').textContent = p + ' Stück';
+  let tot = 0, p = 0;
+  items.forEach(it => { tot += lineTotal(it); p += it.count; });
+  document.getElementById('total').textContent = fmt(Math.round(tot*100)/100);
+  document.getElementById('pieces').textContent = t('pieces') + ': ' + p;
 }
 
 function updateRow(it, el){
   const total = lineTotal(it);
   const sum = el.querySelector('.sum');
-  sum.textContent = total === 0 ? '–' : fmt.format(total);
+  const txt = total === 0 ? '–' : fmt(total);
+  sum.textContent = txt;
+  sum.style.fontSize = txt.length > 11 ? '11px' : txt.length > 9 ? '12.5px' : '';
   sum.classList.toggle('zero', total === 0);
   el.classList.toggle('active', it.count > 0);
   updateTotals();
@@ -109,19 +219,24 @@ function buildRow(it){
   el.className = 'row';
   el.innerHTML = `
     <div class="stepper">
-      <input class="count" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" aria-label="Anzahl">
+      <input class="count" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3">
       <div class="arrows">
-        <button type="button" class="up" aria-label="Anzahl erhöhen">▲</button>
-        <button type="button" class="down" aria-label="Anzahl verringern">▼</button>
+        <button type="button" class="up" aria-label="+1">▲</button>
+        <button type="button" class="down" aria-label="−1">▼</button>
       </div>
     </div>
-    <input class="name" type="text" placeholder="Produkt" autocomplete="off" autocapitalize="sentences">
-    <input class="price" type="text" inputmode="decimal" placeholder="0,00" aria-label="Einzelpreis">
+    <input class="name" type="text" autocomplete="off" autocapitalize="sentences">
+    <input class="price" type="text" inputmode="decimal">
     <div class="sum zero">–</div>
-    <button type="button" class="del" aria-label="Zeile entfernen">✕</button>`;
+    <button type="button" class="del">✕</button>`;
   const count = el.querySelector('.count');
   const name = el.querySelector('.name');
   const price = el.querySelector('.price');
+  count.setAttribute('aria-label', t('qty'));
+  name.placeholder = t('product');
+  price.placeholder = nfZero;
+  price.setAttribute('aria-label', t('price'));
+  el.querySelector('.del').setAttribute('aria-label', t('del'));
   count.value = it.count; name.value = it.name; price.value = it.price;
 
   const setCount = n => { it.count = Math.max(0, Math.min(999, n)); count.value = it.count; updateRow(it, el); };
@@ -149,6 +264,37 @@ function render(){
   updateTotals();
 }
 
+// ---------- Sprache anwenden ----------
+const langSel = document.getElementById('langSel');
+const curSel = document.getElementById('curSel');
+const resetBtn = document.getElementById('reset');
+const cfgBtn = document.getElementById('cfgBtn');
+
+function fillSelects(){
+  langSel.innerHTML = LANGS.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+  langSel.value = S.lang;
+  curSel.innerHTML = CURS.map(c => `<option value="${c}">${curLabel(c)}</option>`).join('');
+  curSel.value = S.cur;
+}
+function applyI18n(){
+  mkFormats();
+  document.documentElement.lang = L().loc;
+  document.title = t('title');
+  document.querySelectorAll('[data-i]').forEach(e => { e.textContent = t(e.dataset.i); });
+  cfgBtn.textContent = '🌐 ' + S.cur;
+  disarm();
+  fillSelects();
+  render();
+}
+
+langSel.onchange = () => {
+  S.lang = langSel.value;
+  S.cur = L().cur;          // Standardwährung der Sprache, jederzeit änderbar
+  saveSettings(); applyI18n();
+};
+curSel.onchange = () => { S.cur = curSel.value; saveSettings(); applyI18n(); };
+cfgBtn.onclick = () => { const c = document.getElementById('cfg'); c.hidden = !c.hidden; };
+
 document.getElementById('add').onclick = () => {
   const it = newItem(); items.push(it);
   const el = buildRow(it);
@@ -156,26 +302,23 @@ document.getElementById('add').onclick = () => {
   el.scrollIntoView({block:'center', behavior:'smooth'});
 };
 
-const resetBtn = document.getElementById('reset');
 let armTimer;
 resetBtn.onclick = () => {
   if (!resetBtn.classList.contains('armed')) {
-    resetBtn.classList.add('armed'); resetBtn.textContent = 'Wirklich löschen?';
+    resetBtn.classList.add('armed'); resetBtn.textContent = t('sure');
     armTimer = setTimeout(disarm, 3000);
     return;
   }
   disarm(); items = [newItem()]; render(); save();
 };
-function disarm(){ clearTimeout(armTimer); resetBtn.classList.remove('armed'); resetBtn.textContent = 'Neue Runde'; }
+function disarm(){ clearTimeout(armTimer); resetBtn.classList.remove('armed'); resetBtn.textContent = t('reset'); }
 
-render();
-(async () => {
-  try {
-    const raw = localStorage.getItem(KEY);
-    const saved = raw && JSON.parse(raw);
-    if (Array.isArray(saved) && saved.length) { items = saved; render(); }
-  } catch(e) {}
-})();
+try {
+  const raw = localStorage.getItem(KEY);
+  const saved = raw && JSON.parse(raw);
+  if (Array.isArray(saved) && saved.length) items = saved;
+} catch(e) {}
+applyI18n();
 </script>
 </body>
 </html>
