@@ -319,6 +319,11 @@ try {
   if (Array.isArray(saved) && saved.length) items = saved;
 } catch(e) {}
 applyI18n();
+
+// Offlinefähigkeit (Service Worker)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
 </script>
 </body>
 </html>
