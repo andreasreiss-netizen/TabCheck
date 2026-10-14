@@ -1,7 +1,7 @@
 // Service Worker: macht die App offlinefähig.
 // Bei Änderungen an der App die Versionsnummer erhöhen (v1 -> v2 ...).
-const CACHE = 'bestellcheck-v1';
-const ASSETS = ['./', 'index.html'];
+const CACHE = 'bestellcheck-v2';
+const ASSETS = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
